@@ -3,6 +3,7 @@
 #include "crap.hpp"
 
 #include "nastran_export.hpp"
+#include "medit_export.hpp"
 
 #include <CGAL/Polygon_mesh_processing/triangulate_faces.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
@@ -34,6 +35,7 @@ struct PolyDomainArgs
 	double facetDistance;
 	double cellRadiusEdgeRatio;
 	double cellSize;
+	std::vector<std::pair<int, int>> squashRanges;
 };
 
 #ifdef CGAL_CONCURRENT_MESH_3
@@ -96,14 +98,20 @@ void polyDomain(const PolyDomainArgs & args)
 	C3T3 c3t3 = CGAL::make_mesh_3<C3T3>(domain, criteria, no_perturb(), no_exude());
 
 	// Output
-	std::ofstream medit_file(args.meditFile);
-	c3t3.output_to_medit(medit_file, false, true);
-	medit_file.close();
+	std::ofstream meditFile(args.meditFile);
+	if (args.squashRanges.empty())
+		c3t3.output_to_medit(meditFile, false, true);
+	else
+		CGAL::squashed_output_to_medit(meditFile, c3t3, false, true, args.squashRanges);
+	meditFile.close();
 
 	// Output nastran
-	std::ofstream nastran_file(args.bdfFile);
-	CGAL::output_to_nastran(nastran_file, c3t3, false, true);
-	medit_file.close();
+	std::ofstream nastranFile(args.bdfFile);
+	if (args.squashRanges.empty())
+		CGAL::output_to_nastran(nastranFile, c3t3, false, true);
+	else
+		CGAL::squashed_output_to_nastran(nastranFile, c3t3, false, true, args.squashRanges);
+	nastranFile.close();
 }
 
 int main(int argc, char * argv[])
@@ -146,6 +154,10 @@ int main(int argc, char * argv[])
 	crap::KeyValueArg cellSizeArg("cell_size", "size", "Cell <size>.");
 	cellSizeArg.setDefaultValue("2.5");
 	generateArgsGroup.addAttr(& cellSizeArg);
+	crap::KeyValueArg squashFromArg("squash_from", "from", "Squash <from>.");
+	generateArgsGroup.addAttr(& squashFromArg);
+	crap::KeyValueArg squashToArg("squash_to", "to", "Squash <to>.");
+	generateArgsGroup.addAttr(& squashToArg);
 	parser.addSubCmd(& generateArg)->addArgGroup(& generateArgsGroup);
 
 	try {
@@ -176,6 +188,23 @@ int main(int argc, char * argv[])
 		args.cellRadiusEdgeRatio = std::stod(cellRadiusEdgeRatioArg.value());
 		args.cellSize = std::stod(cellSizeArg.value());
 
+		if (squashFromArg.isSet() || squashToArg.isSet()) {
+			if (squashFromArg.isSet() && squashToArg.isSet()) {
+				int from = std::stoi(squashFromArg.value());
+				int to = std::stoi(squashToArg.value());
+
+				if (from > to) {
+					std::cout << "Incorrect squash range (squash_to must be larger than squash_from)." << std::endl;
+					return EXIT_FAILURE;
+				}
+
+				args.squashRanges.push_back(std::pair<int, int>(from, to));
+			} else {
+				std::cout << "Both squash range values must be set." << std::endl;
+				return EXIT_FAILURE;
+			}
+		}
+
 		std::cout << "Input file: " << args.inputFile << "\n";
 		std::cout << "Output directory: " << outputDir << "\n";
 		std::cout << "Medit output file: " << args.meditFile << "\n";
@@ -186,6 +215,8 @@ int main(int argc, char * argv[])
 		std::cout << "Facet distance: " << args.facetDistance << "\n";
 		std::cout << "Cell radius edge ratio: " << args.cellRadiusEdgeRatio << "\n";
 		std::cout << "Cell size: " << args.cellSize << "\n";
+		if (!args.squashRanges.empty())
+			std::cout << "Squash range: [" << args.squashRanges[0].first << ", " << args.squashRanges[0].second << "]\n";
 
 		polyDomain(args);
 	}

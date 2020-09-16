@@ -12,7 +12,7 @@ add_definitions(-DCGAL_MESH_3_NO_DEPRECATED_SURFACE_INDEX
 
 find_package(CGAL COMPONENTS ImageIO)
 
-set(SOURCES main.cpp nastran_export.hpp crap.hpp)
+set(SOURCES main.cpp nastran_export.hpp medit_export.hpp functions.hpp crap.hpp)
 
 if ( CGAL_FOUND )
     include( ${CGAL_USE_FILE} )
