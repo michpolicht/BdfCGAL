@@ -63,8 +63,8 @@ if ( CGAL_FOUND )
         message(STATUS "VTK was not found")
     endif()
 
-    add_executable(NastranCGAL ${SOURCES})
-    target_link_libraries(NastranCGAL CGAL::CGAL)
+    add_executable(BdfCGAL ${SOURCES})
+    target_link_libraries(BdfCGAL CGAL::CGAL)
 
 else()
     message(STATUS "This program requires the CGAL library, and will not be compiled.")
